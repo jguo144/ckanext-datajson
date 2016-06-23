@@ -7,6 +7,8 @@ import logging
 import string
 
 import ckan.model as model
+import mimetypes
+import re
 
 
 log = logging.getLogger('datajson')
@@ -17,7 +19,7 @@ def make_datajson_catalog(datasets):
     catalog = OrderedDict([
         ('conformsTo', 'https://project-open-data.cio.gov/v1.1/schema'),  # requred
         ('describedBy', 'https://project-open-data.cio.gov/v1.1/schema/catalog.json'),  # optional
-        ('@context', 'https://project-open-data.cio.gov/v1.1/schema/data.jsonld'),  # optional
+        ('@context', 'https://project-open-data.cio.gov/v1.1/schema/catalog.jsonld'),  # optional
         ('@type', 'dcat:Catalog'),  # optional
         ('dataset', datasets),  # required
     ])
@@ -26,7 +28,9 @@ def make_datajson_catalog(datasets):
 
 def make_datajson_entry(package):
     # extras is a list of dicts [{},{}, {}]. For each dict, extract the key, value entries into a new dict
-    extras = dict([(x['key'], x['value']) for x in package['extras']])
+    extras = {}
+    if package.get('extras'):
+        extras = dict([(x['key'], x['value']) for x in package['extras']])
 
     parent_dataset_id = extras.get('parent_dataset')
     if parent_dataset_id:
@@ -38,12 +42,42 @@ def make_datajson_entry(package):
     # if resource format is CSV then convert it to text/csv
     # Resource format has to be in 'csv' format for automatic datastore push.
     for r in package["resources"]:
-        if r["format"].lower() == "csv":
-            r["format"] = "text/csv"
-        if r["format"].lower() == "json":
-            r["format"] = "application/json"
-        if r["format"].lower() == "pdf":
-            r["format"] = "application/pdf"
+        if r["format"]:
+            if r["format"].lower() == "csv":
+                r["format"] = "text/csv"
+            elif r["format"].lower() == "json":
+                r["format"] = "application/json"
+            elif r["format"].lower() == "pdf":
+                r["format"] = "application/pdf"
+            elif r["format"].lower() == "html":
+                r["format"] = "text/html"
+            elif r["format"].lower() == "txt":
+                r["format"] = "text/plain"
+            elif r["format"].lower() == "geojson":
+                r["format"] = "application/vnd.geo+json"
+            elif r["format"].lower() == "doc":
+                r["format"] = "application/msword"
+            elif r["format"].lower() == "docx":
+                r["format"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif r["format"].lower() == "ppt":
+                r["format"] = "application/vnd.ms-powerpoint"
+            elif r["format"].lower() == "pptx":
+                r["format"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            elif r["format"].lower() == "xls":
+                r["format"] = "application/vnd.ms-excel"
+            elif r["format"].lower() == "xlsx":
+                r["format"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            else:
+                try:
+                    extension = '.'+re.sub('[^a-zA-Z]+', '', r["format"].lower())
+                    r["format"] = mimetypes.types_map[extension]
+                except:
+                    r["format"] = "application/octet-stream"
+        else:
+            if r["url"].startswith("http://") or r["url"].startswith("https://"):
+                r["format"] = "text/html"
+            else:
+                r["format"] = "application/octet-stream"
 
     try:
         retlist = [
@@ -51,14 +85,14 @@ def make_datajson_entry(package):
 
             ("title", strip_if_string(package["title"])),  # required
 
-            # ("accessLevel", 'public'),  # required
-            ("accessLevel", strip_if_string(extras.get('public_access_level'))),  # required
+            ("accessLevel", 'public'),  # required
+            #("accessLevel", strip_if_string(extras.get('public_access_level'))),  # required
 
             # ("accrualPeriodicity", "R/P1Y"),  # optional
             # ('accrualPeriodicity', 'accrual_periodicity'),
-            ('accrualPeriodicity', get_accrual_periodicity(extras.get('accrual_periodicity'))), # optional
+            #('accrualPeriodicity', get_accrual_periodicity(extras.get('accrual_periodicity'))), # optional
 
-            ("conformsTo", strip_if_string(extras.get('conforms_to'))),  # optional
+            #("conformsTo", strip_if_string(extras.get('conforms_to'))),  # optional
 
             # ('contactPoint', OrderedDict([
             # ("@type", "vcard:Contact"),
@@ -67,45 +101,47 @@ def make_datajson_entry(package):
             # ])),  # required
             ('contactPoint', get_contact_point(extras, package)),  # required
 
-            ("dataQuality", strip_if_string(extras.get('data_quality'))),  # required-if-applicable
+            #("dataQuality", strip_if_string(extras.get('data_quality'))),  # required-if-applicable
 
-            ("describedBy", strip_if_string(extras.get('data_dictionary'))),  # optional
-            ("describedByType", strip_if_string(extras.get('data_dictionary_type'))),  # optional
+            #("describedBy", strip_if_string(extras.get('data_dictionary'))),  # optional
+            #("describedByType", strip_if_string(extras.get('data_dictionary_type'))),  # optional
 
             ("description", strip_if_string(package["notes"])),  # required
 
             # ("description", 'asdfasdf'),  # required
 
-            ("identifier", strip_if_string(extras.get('unique_id'))),  # required
+            # ("identifier", strip_if_string(extras.get('unique_id'))),  # required
             # ("identifier", 'asdfasdfasdf'),  # required
+            ("identifier", strip_if_string(package.get('id'))),  # required
 
-            ("isPartOf", parent_dataset_id),  # optional
-            ("issued", strip_if_string(extras.get('release_date'))),  # optional
+            #("isPartOf", parent_dataset_id),  # optional
+            #("issued", strip_if_string(extras.get('release_date'))),  # optional
 
             # ("keyword", ['a', 'b']),  # required
             ("keyword", [t["display_name"] for t in package["tags"]]),  # required
 
-            ("landingPage", strip_if_string(extras.get('homepage_url'))),   # optional
+            #("landingPage", strip_if_string(extras.get('homepage_url'))),   # optional
 
-            ("license", strip_if_string(extras.get("license_new"))),    # required-if-applicable
+            #("license", strip_if_string(extras.get("license_new"))),    # required-if-applicable
 
-            ("modified", strip_if_string(extras.get("modified"))),  # required
+            #("modified", strip_if_string(extras.get("modified"))),  # required
+            ("modified", strip_if_string(package.get("metadata_modified"))),  # required
 
-            ("primaryITInvestmentUII", strip_if_string(extras.get('primary_it_investment_uii'))),  # optional
+            #("primaryITInvestmentUII", strip_if_string(extras.get('primary_it_investment_uii'))),  # optional
 
             # ('publisher', OrderedDict([
             # ("@type", "org:Organization"),
             # ("name", "Widget Services")
             # ])),  # required
-            ("publisher", get_publisher_tree(extras)),  # required
+            ("publisher", get_publisher_tree(extras, package)),  # required
 
-            ("rights", strip_if_string(extras.get('access_level_comment'))),  # required
+            #("rights", strip_if_string(extras.get('access_level_comment'))),  # required
 
-            ("spatial", strip_if_string(package.get("spatial"))),  # required-if-applicable
+            #("spatial", strip_if_string(package.get("spatial"))),  # required-if-applicable
 
-            ('systemOfRecords', strip_if_string(extras.get('system_of_records'))),  # optional
+            #('systemOfRecords', strip_if_string(extras.get('system_of_records'))),  # optional
 
-            ("temporal", strip_if_string(extras.get('temporal'))),  # required-if-applicable
+            #("temporal", strip_if_string(extras.get('temporal'))),  # required-if-applicable
 
             ("distribution", generate_distribution(package)),   # required-if-applicable
 
@@ -284,24 +320,48 @@ def generate_distribution(package):
 
 
 def get_contact_point(extras, package):
-    for required_field in ["contact_name", "contact_email"]:
-        if required_field not in extras.keys():
-            raise KeyError(required_field)
+    fields = [('contact_name', 'contact_email'),
+              ('maintainer', 'maintainer_email'),
+              ('author', 'author_email')]
+    contact_point = None
 
-    email = strip_if_string(extras['contact_email'])
-    if email is None or '@' not in email:
-        raise KeyError(required_field)
+    for name_field, email_field in fields:
+        try:
+            for required_field in [name_field, email_field]:
+                if (required_field not in extras.keys() and required_field not in package.keys()):
+                    raise KeyError(required_field)
+            try:
+                email = strip_if_string(package[email_field])
+            except KeyError:
+                email = strip_if_string(extras[email_field])
 
-    fn = strip_if_string(extras['contact_name'])
-    if fn is None:
-        raise KeyError(required_field)
+            if email is None or '@' not in email:
+                raise KeyError(required_field)
 
-    contact_point = OrderedDict([
-        ('@type', 'vcard:Contact'),  # optional
-        ('fn', fn),  # required
-        ('hasEmail', 'mailto:' + email),  # required
-    ])
-    return contact_point
+            try:
+                fn = strip_if_string(package[name_field])
+            except KeyError:
+                fn = strip_if_string(extras[name_field])
+
+            if fn is None:
+                user = email.split('@')[0]
+                names = user.split('.')
+                if len(names) in [2,3]:
+                    fn = ' '.join(names).title()
+                else:
+                    raise KeyError(required_field)
+
+            contact_point = OrderedDict([
+                ('@type', 'vcard:Contact'),  # optional
+                ('fn', fn),  # required
+                ('hasEmail', 'mailto:' + email),  # required
+            ])
+            break
+        except KeyError:
+            pass
+    if contact_point is not None:
+        return contact_point
+    raise KeyError('contact_email')
 
 
 def extra(package, key, default=None):
@@ -312,12 +372,16 @@ def extra(package, key, default=None):
     return default
 
 
-def get_publisher_tree(extras):
+def get_publisher_tree(extras, package):
     # Sorry guys
     # TODO refactor that to recursion? any refactor would be nice though
-    publisher = strip_if_string(extras.get('publisher'))
-    if publisher is None:
-        raise KeyError('publisher')
+    if extras.get('publisher'):
+        publisher = strip_if_string(extras.get('publisher'))
+    else:
+        try:
+            publisher = strip_if_string(package['organization']['title'])
+        except KeyError:
+            raise KeyError('publisher')
 
     tree = [
         ('@type', 'org:Organization'),  # optional

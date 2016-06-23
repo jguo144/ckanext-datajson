@@ -119,6 +119,8 @@ class DataJsonController(BaseController):
                 ("foaf:homepage", DataJsonPlugin.site_url),
                 ("dcat:dataset", [dataset_to_jsonld(d) for d in data]),
             ])
+        elif format == 'json':
+            data = make_datajson_catalog(data)
 
         return p.toolkit.literal(json.dumps(data))
 
@@ -188,13 +190,12 @@ class DataJsonController(BaseController):
 
 def make_json():
     # Build the data.json file.
-    packages = p.toolkit.get_action("current_package_list_with_resources")(None, {})
+    packages = p.toolkit.get_action("current_package_list_with_resources")(None, {'limit':100000000})
     output = []
     # Create data.json only using public and public-restricted datasets, datasets marked non-public are not exposed
     for pkg in packages:
-        extras = dict([(x['key'], x['value']) for x in pkg['extras']])
         try:
-            if not (re.match(r'[Nn]on-public', extras['public_access_level'])):
+            if not pkg['private']:
                 datajson_entry = make_datajson_entry(pkg)
                 if datajson_entry:
                     output.append(datajson_entry)
@@ -254,11 +255,8 @@ def make_pdl(owner_org):
     output = []
     #Create data.json only using public datasets, datasets marked non-public are not exposed
     for pkg in packages:
-        extras = dict([(x['key'], x['value']) for x in pkg['extras']])
         try:
-            if pkg['owner_org'] == owner_org \
-                    and not (re.match(r'[Nn]on-public', extras['public_access_level'])):
-
+            if pkg['owner_org'] == owner_org and not pkg['private']:
                 datajson_entry = make_datajson_entry(pkg)
                 if datajson_entry and is_valid(datajson_entry):
                     output.append(datajson_entry)
