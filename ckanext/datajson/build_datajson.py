@@ -32,6 +32,9 @@ def make_datajson_entry(package):
     if package.get('extras'):
         extras = dict([(x['key'], x['value']) for x in package['extras']])
 
+    if len(package.get('tags')) == 0:
+        package['tags'].append({'display_name':'Other'})
+
     parent_dataset_id = extras.get('parent_dataset')
     if parent_dataset_id:
         parent = model.Package.get(parent_dataset_id)
@@ -123,6 +126,7 @@ def make_datajson_entry(package):
             #("landingPage", strip_if_string(extras.get('homepage_url'))),   # optional
 
             #("license", strip_if_string(extras.get("license_new"))),    # required-if-applicable
+            ("license", strip_if_string(package.get("license_url"))),    # required-if-applicable
 
             #("modified", strip_if_string(extras.get("modified"))),  # required
             ("modified", strip_if_string(package.get("metadata_modified"))),  # required
@@ -377,11 +381,10 @@ def get_publisher_tree(extras, package):
     # TODO refactor that to recursion? any refactor would be nice though
     if extras.get('publisher'):
         publisher = strip_if_string(extras.get('publisher'))
+    elif package.get('organization'):
+        publisher = strip_if_string(package['organization']['title'])
     else:
-        try:
-            publisher = strip_if_string(package['organization']['title'])
-        except KeyError:
-            raise KeyError('publisher')
+        raise KeyError('publisher')
 
     tree = [
         ('@type', 'org:Organization'),  # optional
