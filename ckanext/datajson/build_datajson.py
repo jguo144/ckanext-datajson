@@ -7,9 +7,10 @@ import logging
 import string
 
 import ckan.model as model
+import ckan.plugins.toolkit as tk
 import mimetypes
 import re
-
+from pylons import config
 
 log = logging.getLogger('datajson')
 
@@ -31,6 +32,9 @@ def make_datajson_entry(package):
     extras = {}
     if package.get('extras'):
         extras = dict([(x['key'], x['value']) for x in package['extras']])
+
+    if not package.get('notes'):
+        package["notes"] = package["title"]
 
     if len(package.get('tags')) == 0:
         package['tags'].append({'display_name':'Other'})
@@ -271,6 +275,10 @@ def generate_distribution(package):
                 if 'api' == r.get('resource_type') or 'accessurl' == r.get('resource_type'):
                     resource += [("accessURL", res_url)]
                 else:
+                    if res_url.startswith('/datastore/dump/'):
+                        site_url = tk.aslist(config.get('ckan.site_url', []))
+                        if site_url:
+                            res_url = site_url[0] + res_url
                     resource += [("downloadURL", res_url)]
                     if 'format' in rkeys:
                         res_format = strip_if_string(r.get('format'))
