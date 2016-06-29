@@ -7,7 +7,6 @@ import logging
 import string
 
 import ckan.model as model
-import ckan.plugins.toolkit as tk
 import mimetypes
 import re
 from pylons import config
@@ -38,6 +37,14 @@ def make_datajson_entry(package):
 
     if len(package.get('tags')) == 0:
         package['tags'].append({'display_name':'Other'})
+
+    # if there is no contact_email, set a default email
+    if not extras.get('contact_name') and not extras.get('contact_email'):
+        contact_name = config.get('ckanext.datajson.contact_name', config.get('email_to'))
+        contact_email = config.get('ckanext.datajson.contact_email', config.get('ckan.site_title'))
+        if contact_name and contact_email:
+            extras['contact_name'] = contact_name
+            extras['contact_email'] = contact_email
 
     parent_dataset_id = extras.get('parent_dataset')
     if parent_dataset_id:
@@ -276,9 +283,9 @@ def generate_distribution(package):
                     resource += [("accessURL", res_url)]
                 else:
                     if res_url.startswith('/datastore/dump/'):
-                        site_url = tk.aslist(config.get('ckan.site_url', []))
+                        site_url = config.get('ckan.site_url', None)
                         if site_url:
-                            res_url = site_url[0] + res_url
+                            res_url = site_url + res_url
                     resource += [("downloadURL", res_url)]
                     if 'format' in rkeys:
                         res_format = strip_if_string(r.get('format'))
@@ -332,8 +339,8 @@ def generate_distribution(package):
 
 
 def get_contact_point(extras, package):
-    fields = [('contact_name', 'contact_email'),
-              ('maintainer', 'maintainer_email'),
+    fields = [('maintainer', 'maintainer_email'),
+              ('contact_name', 'contact_email'),
               ('author', 'author_email')]
     contact_point = None
 
