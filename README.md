@@ -28,7 +28,7 @@ install the module in develop mode, which just puts the directory in your
 Python path.
 
 	. path/to/pyenv/bin/activate
-	pip install -r pip-requirements.txt
+	pip install -r requirements.txt
 	python setup.py develop
 
 Then in your CKAN .ini file, add ``datajson'' to your ckan.plugins line:
@@ -49,6 +49,10 @@ revise wsgi.py and add:
 before
 
 	from paste.deploy import loadapp
+
+If there are issues with paster commands try this:
+
+	easy_install pastescript
 
 Then restart your server and check out:
 
