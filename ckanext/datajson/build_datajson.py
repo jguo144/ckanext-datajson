@@ -38,6 +38,14 @@ def make_datajson_entry(package):
     if len(package.get('tags')) == 0:
         package['tags'].append({'display_name':'Other'})
 
+    if extras.get('category') == None and package.get('groups') and package.get('groups') != []:
+        tmp_category = set()
+        for group in package.get('groups'):
+            tmp_category.add(group['display_name'])
+        extras['category'] = ",".join(tmp_category)
+        geospatial_group = config.get('ckanext.datajson.geospatial_group', 'Geospatial')
+        extras['category'] = extras['category'].replace(geospatial_group,'geospatial')
+
     # if there is no contact_email, set a default email
     if not extras.get('contact_name') and not extras.get('contact_email'):
         contact_name = config.get('ckanext.datajson.contact_name', config.get('email_to'))
