@@ -237,16 +237,16 @@ def make_datajson_entry(package):
             or striped_retlist_dict.get('dataQuality') == "False":
         striped_retlist_dict['dataQuality'] = False
 
-    from datajsonvalidator import do_validation
-    errors = []
-    try:
-        do_validation([dict(striped_retlist_dict)], errors)
-    except Exception as e:
-        errors.append(("Internal Error", ["Something bad happened: " + unicode(e)]))
-    if len(errors) > 0:
-        for error in errors:
-            log.warn(error)
-        return
+    #from datajsonvalidator import do_validation
+    #errors = []
+    #try:
+    #    do_validation([dict(striped_retlist_dict)], errors)
+    #except Exception as e:
+    #    errors.append(("Internal Error", ["Something bad happened: " + unicode(e)]))
+    #if len(errors) > 0:
+    #    for error in errors:
+    #        log.warn(error)
+    #    return
 
     return striped_retlist_dict
 
