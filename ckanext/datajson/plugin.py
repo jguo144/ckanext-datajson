@@ -190,7 +190,16 @@ class DataJsonController(BaseController):
 
 def make_json():
     # Build the data.json file.
-    packages = p.toolkit.get_action("current_package_list_with_resources")(None, {'limit':100000000})
+    limit = 1000
+    offset = 0
+    packages = []
+    while True:
+        curr_packages = p.toolkit.get_action("current_package_list_with_resources")(None, {'limit':limit, 'offset':offset})
+        if curr_packages:
+            packages.extend(curr_packages)
+            offset += limit
+        else:
+            break
     output = []
     # Create data.json only using public and public-restricted datasets, datasets marked non-public are not exposed
     for pkg in packages:
